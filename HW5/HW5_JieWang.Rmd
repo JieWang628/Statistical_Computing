@@ -1,0 +1,147 @@
+---
+title: "Stat535_HW5"
+author: "Jie Wang"
+date: "October 29, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### 1.
+```{r}
+rm(list=ls())
+library(RSQLite)
+library(dplyr)
+library(DBI)
+```
+
+### 2.	
+#### a.
+```{r}
+con <- dbConnect(RSQLite::SQLite(), dbname='baseball.db')
+dbListTables(con)
+```
+#### b.	
+```{r}
+payroll <- dbReadTable(con, "Salaries")
+payroll %>%
+  dplyr::filter(yearID == 2010) %>%
+  group_by(teamID) %>%
+  summarise(payroll = sum(salary)) %>%
+  arrange(desc(payroll)) %>%
+  head(n = 5)
+#payroll2010 <- subset(payroll, yearID == 2010)
+#payroll2010S <- cbind(aggregate(salary ~ teamID, payroll2010, sum))
+#payroll2010S$teamID[payroll2010S$salary == max(payroll2010S$salary)]
+```
+#### c.	
+```{r}
+dbGetQuery(con, "
+                 SELECT teamID, sum(salary) AS payroll
+                 FROM Salaries
+                 WHERE yearID == 2010
+                 GROUP BY teamID
+                 ORDER BY payroll DESC
+                 LIMIT 5;
+                 ")
+```
+#### d.	
+```{r}
+team_payroll <- dbGetQuery(con, "
+                 SELECT yearID, teamID, sum(salary) AS payroll
+                 FROM Salaries
+                 WHERE yearID BETWEEN 1985 and 2010
+                 GROUP BY teamID, yearID
+                 ORDER BY payroll DESC;")
+head(team_payroll, n = 10)
+```
+
+### 3.	
+
+#### a.
+```{r}
+library(fImport)
+library(timeDate)
+library(timeSeries)
+library(lubridate)
+cpi <- read.table("CPIAUCSL.txt", head=T, skip=54)
+cpi$DATE <- ymd(cpi$DATE)
+cpi <- subset(cpi,months(DATE)=="January" & DATE <= ymd("2011-01-01") & DATE >= ymd("1985-01-01"))
+cpi <- cpi[,2]
+cpi <- cpi/cpi[length(cpi)]
+year <- 1985:2011
+plot(year,cpi)
+```
+
+#### b.	Calculate the inflation-adjusted payroll of each baseball team over time.  (Hint:  You may find plyr helpful here.)
+```{r}
+#convert_to_2011 <- function(amt, yr) {
+#  y <- amt / cpi[yr - 1985 + 1]
+#}
+#convert_to_2011(payroll, yearID))
+team_payroll <- team_payroll %>%
+  mutate(adj_payroll = payroll/cpi[yearID-1985+1])
+head(team_payroll, n=10)
+```
+#### c.	
+```{r}
+library(ggplot2)
+ggplot(team_payroll,
+       aes(x = yearID,
+           y = adj_payroll,
+           color = teamID)) + 
+  geom_line() +
+  theme_bw() +
+  labs(x = "Year",
+       y = "Adjusted Payroll")
+```
+
+ 
+#### d.	
+```{r}
+library(ggplot2)
+ggplot(team_payroll,
+       aes(x = yearID,
+           y = log(adj_payroll),
+           color = teamID)) + 
+  geom_line() +
+  theme_bw() +
+  labs(x = "Year",
+       y = "Log of Adjusted Payroll")
+```
+#### e.	
+```{r}
+slopes <- team_payroll %>% group_by(teamID) %>%   mutate(slopes=coef(lm(log(adj_payroll)~yearID))[2]) 
+
+boxplot(slopes$slopes)
+
+team_payroll %>% group_by(yearID)  %>%  top_n(n = 5, wt = adj_payroll) %>% arrange(desc(yearID)) %>% group_by(teamID) %>% count() %>% arrange(desc(n))
+
+team_payroll %>% group_by(yearID) %>% summarise(max=max(adj_payroll), min=min(adj_payroll)) %>% 
+  mutate(factor=max/min) %>% ggplot(aes(x=yearID, y=factor)) +
+  geom_line()
+```
+From the result, we can see that in general, the payrolls fell behind the inflation.
+Also we can see from the  pictures in Q3, there is no team whose payrolls have consistently been higher than the others.
+The gap between the highest and the lowest payrolls has grown. 
+
+### 4.	
+```{r}
+teams <- dbGetQuery(con, "select yearID, teamID, W, G from Teams")
+team_payroll %>% inner_join(teams) %>% mutate(win_prop=W/G)%>%
+  ggplot(aes(x=win_prop, y=adj_payroll))+geom_point()+geom_smooth(method="lm")
+```
+
+### 5.	
+```{r}
+salary_class_df <- payroll %>% dplyr::group_by(playerID) %>% 
+  summarise(mean.salary = mean(salary, na.rm=T)) %>%
+  mutate(salary_class = cut(mean.salary, breaks=c(0, 50000, 100000, 150000, 200000, max(mean.salary)), labels=as.character(1:5)))
+head(salary_class_df, n = 15)
+
+library(sqldf)
+salary_class_df1 <- dbGetQuery(con,"select playerID,avg(salary) as mean_salary from Salaries group by playerID")
+salary_class_df2 <- sqldf::sqldf("select playerID,mean_salary,min(5,floor(mean_salary/5000)) as salary_class from salary_class_df1")
+head(salary_class_df2, n = 15)
+```
+
