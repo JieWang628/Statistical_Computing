@@ -1,0 +1,101 @@
+---
+title: "Homework3 for STAT535"
+author: "Jie Wang"
+date: "September 29, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+1.
+```{r}
+library(stringr)
+nhl1415 <- readLines("http://www.stat.cmu.edu/~cshalizi/statcomp/14/hw/03/NHLHockeySchedule2.html")
+#which(nchar(nhl1415)==max((nchar(nhl1415))))
+```
+a. How many lines does it contain?
+```{r}
+length(nhl1415)
+```
+b. What is the total number of characters in the file?
+```{r}
+sum(nchar(nhl1415))
+```
+c. What is the maximun number of characters in a line?
+```{r}
+max((nchar(nhl1415)))
+```
+2. Answer: The first game is Montreal versus Toronto. The final game is Edmonton versus Vancouver.
+
+3. Answer: The number of line corresponding to game 1 is 
+```{r}
+grep("Wed Oct 8, 2014.*Montreal",nhl1415)
+```
+The number of line corresponding to game 1230 is
+```{r}
+grep("Sat Apr 11, 2015.*Edmonton",nhl1415)
+```
+ The line corresponding to game 1  begins `</h3>`. The rest of them begin with with `</td>`.
+ 
+4. Answer: For most URL for purchasing tickets, the link has home team in it.
+5. Answer:
+```{r}
+gamerows=grep('class="skedStartDateSite">(.*?)</div>',nhl1415)
+length(gamerows)
+```
+6. Answer:
+```{r}
+Dates=str_match(nhl1415[gamerows],'class="skedStartDateSite">(.*?)</div>')
+date=Dates[,2]
+date[1:10]
+```
+7. Answer:
+Away team:
+```{r}
+away.pattern='Away.*javascript:void\\(0\\);">(.*?)</a>.*?Home'
+away.team=str_match(nhl1415[gamerows],away.pattern)
+away=away.team[,2]
+away[1:10]
+```
+Home team:
+```{r}
+Home.pattern='Home.*javascript:void\\(0\\);">(.*?)</a>.*?Time'
+Home.team=str_match(nhl1415[gamerows],Home.pattern)
+Home=Home.team[,2]
+Home[1:10]
+```
+8. Answer: 
+```{r}
+time.pattern='skedStartTimeEST">(.*?)</div>'
+game.time=str_match(nhl1415[gamerows],time.pattern)
+Time=game.time[,2]
+Time[1:10]
+```
+9.
+Answer: I am a little confused with this problem. In part 4, it mentions that the goal is to extract the URL for buying ticket. However, the URL for the **TICKET>** button is not for purchasing tickets. Actully, the **BUY/SELL** button is for buying tickets. In this question, I identify these two URL because I am not sure which the right one is.
+
+The URL for the **TICKET>** button:
+```{r}
+URLgamerows=c(gamerows[2:1230], gamerows[1230]+2)
+URL.pattern1='href=\"(.*?)"><span>TICKETS'
+URL1=str_match(nhl1415[URLgamerows],URL.pattern1)
+T.URL=URL1[,2]
+length(T.URL)
+T.URL[1:5]
+```
+The URL for purchasing ticket should be the **BUY/SELL** button:
+```{r}
+URL.pattern2='TICKETS›</span></a><a class="btn" shape="rect" href=\"(.*)"><span>BUY/SELL'
+URL2=str_match(nhl1415[URLgamerows],URL.pattern2)
+B.URL=URL2[,2]
+length(B.URL)
+B.URL[1:5]
+```
+For the URL for purchasing ticket button, most links have the home team in it.
+
+10.Answer:
+```{r}
+df=data.frame(date, away, Home, Time, B.URL)
+df[1221:1230,]
+```
+
