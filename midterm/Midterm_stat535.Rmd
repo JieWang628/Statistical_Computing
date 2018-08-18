@@ -1,0 +1,70 @@
+---
+title: "Midterm_stat535"
+author: "Jie Wang"
+date: "October 12, 2017"
+output: pdf_document
+---
+
+Firstly, read in the data
+```{r}
+rm(list=ls())
+df <- read.csv("http://www.math.umass.edu/~anna/Stat535Fall2017/NCs-RTs-02242017.csv")
+dim(df)
+```
+
+Consider the dataset that only contains TR and UNTR conditions
+```{r}
+mydata <- df[ df$TR.Condition== 'TR' | df$TR.Condition=='UNTR',]
+dim(mydata)
+```
+
+Here, I group the data set by TR conditions. By summarizing the grouped dataset, we can find that the mean reaction time for TR is 0.987 and for UNTR is 1.114. Therefore, there is a 0.127 difference in reaction time between TR pictures and UNTR pictures. The participants got faster in TR pictures.
+```{r}
+library(dplyr)
+groupTR <- group_by(mydata, TR.Condition)
+TRsummary <- summarise(groupTR, count=n(), meanRT=mean(RT.Rev,na.rm=TRUE), sdTR=sd(RT.Rev,na.rm=TRUE), medianRT=median(RT.Rev,na.rm=TRUE), Q3rd=quantile(RT.Rev,.75,na.rm=TRUE))
+TRsummary
+```
+
+I also plot the frequency polygons of Reactiom times under these two conditions separately. We can see that the Reactiom times distribution of TR skews right more than UNTR.
+```{r}
+library(ggplot2)
+ggplot(mydata, aes(x=RT.Rev, group=TR.Condition,color=TR.Condition)) +geom_freqpoly()
+```
+
+Now, we group the dataset by runs ans sessions and consider the reaction times between runs and session. From the summary, we can see that participants got fasteset in the second run of thesecond session and slowest in the first run of the first session.
+```{r}
+library(dplyr)
+groupTR <- group_by(mydata, Session, Run)
+TRsummary <- summarise(groupTR, count=n(), meanRT=mean(RT.Rev,na.rm=TRUE), sdTR=sd(RT.Rev,na.rm=TRUE), medianRT=median(RT.Rev,na.rm=TRUE), Q3rd=quantile(RT.Rev,.75,na.rm=TRUE))
+TRsummary
+```
+Also,  frequency polygons of Reactiom times are plotted here. 
+```{r}
+library(ggplot2)
+ggplot(mydata, aes(x=RT.Rev, group=interaction(Run, Session),color=interaction(Run, Session))) +geom_freqpoly()
+```
+
+Now, we consider the reaction times between word classes. By consider their mean reaction times, we can find that naming of objects is faster than naming of actions.
+```{r}
+library(dplyr)
+groupTR <- group_by(mydata, Word.Class)
+TRsummary <- summarise(groupTR, count=n(), meanRT=mean(RT.Rev,na.rm=TRUE), sdTR=sd(RT.Rev,na.rm=TRUE), medianRT=median(RT.Rev,na.rm=TRUE), Q3rd=quantile(RT.Rev,.75,na.rm=TRUE))
+TRsummary
+```
+
+Here, I also plot the frequency polygons of Reactiom times under these two conditions separately. We can see that the Reactiom times distribution of OBJ skews right more than ACT.
+```{r}
+library(ggplot2)
+ggplot(mydata, aes(x=RT.Rev, group=Word.Class,color=Word.Class)) +geom_freqpoly()
+```
+
+Boxplot of reaction time for participants naming Actions, Onjects oictures during two runs and two sessions under two different practice condtions-TR and UNTR.
+```{r}
+library(ggplot2)
+mydata$combine <- interaction(mydata$Word.Class, mydata$Run, mydata$Session )
+ggplot(aes(y=RT.Rev, x=combine, fill=TR.Condition),data=mydata)+geom_boxplot()+
+  stat_summary(fun.y="mean", colour="darkred",  geom="point",position=position_dodge(width=0.75), shape=18, size=2)+
+  stat_summary(fun.data = mean_se, geom = "errorbar",position=position_dodge(width=0.75),width=.2)
+
+```
